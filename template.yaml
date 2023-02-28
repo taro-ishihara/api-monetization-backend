@@ -1,0 +1,186 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform:
+  - AWS::Serverless-2016-10-31
+  - Name: DatadogServerless
+    Parameters:
+      stackName: !Ref "AWS::StackName"
+      forwarderArn: "arn:aws:lambda:us-west-1:044107946839:function:datadog-forwarder-Forwarder-ffJLiHLCk11F"
+      apiKeySecretArn: "arn:aws:secretsmanager:us-west-1:044107946839:secret:DdApiKeySecret-CErgym7q9fSY-l67e4y"
+      addLayers: true
+      pythonLayerVersion: 68
+      flushMetricsToLogs: true
+      enableEnhancedMetrics: true
+      enableXrayTracing: true
+Description: api-monetization-backend
+
+Globals:
+  Function:
+    Timeout: 5
+    MemorySize: 128
+    Runtime: python3.9
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        LOG_LEVEL: INFO
+    Tracing: Active
+
+Resources:
+  httpAPI:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: dev
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        AllowHeaders:
+          - "*"
+        ExposeHeaders:
+          - "*"
+      Auth:
+        Authorizers:
+          frontEggAuthorizer:
+            JwtConfiguration:
+              issuer: "https://app-w7ldic3ylusp.frontegg.com"
+              audience:
+                - "f707d5ce-9584-4bd1-87b5-85f4ea96327d"
+            IdentitySource: "$request.header.Authorization"
+        DefaultAuthorizer: frontEggAuthorizer
+
+  eventInspectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EventInspectFunction
+      CodeUri: functions/event_inspect
+      Handler: app.lambda_handler
+      Events:
+        eventInspect:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /eventinspect
+            Method: post
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: NONE
+
+  registerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: RegisterFunction
+      CodeUri: functions/register
+      Handler: app.lambda_handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: arn:aws:secretsmanager:us-west-1:044107946839:secret:dev/managedapimonetization/stripeapikey-3zLATp
+      Events:
+        register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /register
+            Method: post
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: NONE
+
+  setPermissionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SetPermissionFunction
+      CodeUri: functions/set_permission
+      Handler: app.lambda_handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: arn:aws:secretsmanager:us-west-1:044107946839:secret:dev/managedapimonetization/fronteggapikey-L9Pz5b
+      Events:
+        register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /setpermission
+            Method: post
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: NONE
+
+  listProductsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ListProductsFunction
+      CodeUri: functions/list_products
+      Handler: app.lambda_handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: arn:aws:secretsmanager:us-west-1:044107946839:secret:dev/managedapimonetization/stripeapikey-3zLATp
+      Events:
+        register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /products
+            Method: get
+            PayloadFormatVersion: "2.0"
+
+  listSubscriptionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ListSubscriptionsFunction
+      CodeUri: functions/list_subscriptions
+      Handler: app.lambda_handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: arn:aws:secretsmanager:us-west-1:044107946839:secret:dev/managedapimonetization/stripeapikey-3zLATp
+      Events:
+        register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /subscriptions
+            Method: get
+            PayloadFormatVersion: "2.0"
+
+  subscribeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SubscribeFunction
+      CodeUri: functions/subscribe
+      Handler: app.lambda_handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: arn:aws:secretsmanager:us-west-1:044107946839:secret:dev/managedapimonetization/stripeapikey-3zLATp
+      Events:
+        register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /subscribe
+            Method: post
+            PayloadFormatVersion: "2.0"
+
+  createCustomerPortalSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: CreateCustomerPortalSessionFunction
+      CodeUri: functions/create_customer_portal_session
+      Handler: app.lambda_handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: arn:aws:secretsmanager:us-west-1:044107946839:secret:dev/managedapimonetization/stripeapikey-3zLATp
+      Events:
+        register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /create_customer_portal_session
+            Method: post
+            PayloadFormatVersion: "2.0"
+
+Outputs:
+  monetizationGatewayEndpoint:
+    Description: "API Gateway endpoint URL of API-Monetization backend"
+    Value: !GetAtt
+      - httpAPI
+      - ApiEndpoint
