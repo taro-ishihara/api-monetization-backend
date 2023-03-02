@@ -178,6 +178,24 @@ Resources:
             Method: post
             PayloadFormatVersion: "2.0"
 
+  createEmbedTemplateUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: CreateEmbedTemplateUrlFunction
+      CodeUri: functions/create_embed_template_url
+      Handler: app.lambda_handler
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: arn:aws:secretsmanager:us-west-1:044107946839:secret:dev/managedapimonetization/moesifapikey-aZMYLh
+      Events:
+        register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref httpAPI
+            Path: /createembedtemplateurl
+            Method: post
+            PayloadFormatVersion: "2.0"
+
 Outputs:
   monetizationGatewayEndpoint:
     Description: "API Gateway endpoint URL of API-Monetization backend"

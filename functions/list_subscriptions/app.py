@@ -44,7 +44,7 @@ def lambda_handler(event, context):
     )
     if customers['data']:
         customer_id = customers['data'][0]['id']
-    customer = stripe.Customer.retrieve("cus_NQkj3IyTZJxOTG", expand=['subscriptions'])
+    customer = stripe.Customer.retrieve(customer_id, expand=['subscriptions'])
     subscriptions = customer['subscriptions']['data']
 
     return {
